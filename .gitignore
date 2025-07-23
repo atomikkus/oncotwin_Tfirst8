@@ -9,3 +9,4 @@
 *.xlsx
 *.csv
 /genomic_data_parquet
+/api_outputs

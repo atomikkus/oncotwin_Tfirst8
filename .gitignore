@@ -1,0 +1,11 @@
+/json_response
+/key.json
+/samples.txt
+/clinical_Details.csv
+/cancerDetails_cancerDetails.csv
+/medicalInfo_medicalDetails.csv
+/patientInfo_patientDetails.csv
+.env
+*.xlsx
+*.csv
+/genomic_data_parquet

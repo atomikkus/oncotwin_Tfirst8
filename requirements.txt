@@ -1,0 +1,13 @@
+pandas
+openpyxl
+sqlalchemy
+tqdm
+pyarrow
+fastapi
+uvicorn[standard]
+python-multipart
+pydantic
+aiofiles
+requests
+python-dotenv
+redis

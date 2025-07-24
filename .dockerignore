@@ -1,0 +1,47 @@
+# Python build artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*egg-info/
+.pytest_cache/
+.coverage
+.mypy_cache/
+
+# Virtual Environments
+.venv
+venv/
+
+
+key.json
+
+# IDE and OS specific
+.idea/
+.vscode/
+.DS_Store
+
+# Git
+.git
+.gitignore
+
+# Test files and notebooks
+*.ipynb
+test_*.py
+testing.ipynb
+test_file.txt
+
+# Runtime generated data, logs, and outputs
+api_outputs/
+output/
+genomic_data_parquet/
+json_response/
+*.log
+*.parquet
+*.xlsx
+*.csv
+pipeline_state.json
+
+# Exclude large data files that should be passed as arguments
+ids.txt
+samples.txt
+temp_samples_*.txt 

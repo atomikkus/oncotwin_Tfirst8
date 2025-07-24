@@ -6,8 +6,6 @@ from collections import defaultdict
 from tqdm import tqdm
 import argparse
 
-# The 'wd' global variable is removed to avoid hardcoded paths.
-# All paths will be handled by command-line arguments.
 
 ## Basic Preprocessing
 def preprocess_dataframe(df):

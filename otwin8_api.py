@@ -8,7 +8,7 @@ import json
 import asyncio
 import uuid
 import hashlib
-import redis
+# Remove redis import
 from datetime import datetime
 import tempfile
 import logging
@@ -23,23 +23,8 @@ load_dotenv(override=True)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="OncoTwin Simplified API", version="1.0.1")
+app = FastAPI(title="OncoTwin Simplified API", version="1.0.0")
 
-# Redis connection
-try:
-    redis_client = redis.Redis(
-        host=os.getenv("REDIS_HOST", "localhost"),
-        port=int(os.getenv("REDIS_PORT", 6379)),
-        db=int(os.getenv("REDIS_DB", 0)),
-        decode_responses=True
-    )
-    redis_client.ping()
-    logger.info("Redis connection established")
-except Exception as e:
-    logger.warning(f"Redis connection failed: {e}. Using fallback in-memory storage.")
-    redis_client = None
-
-# Fallback in-memory storage when Redis is not available
 job_status_memory = {}
 cache_memory = {}
 
@@ -82,50 +67,20 @@ def get_cache_key(request: SingleRequest) -> str:
     return hashlib.md5(content.encode()).hexdigest()
 
 def get_job_status(job_id: str) -> Optional[Dict]:
-    """Get job status from Redis or memory"""
-    if redis_client:
-        try:
-            status_data = redis_client.get(f"job_status:{job_id}")
-            return json.loads(status_data) if status_data else None
-        except Exception as e:
-            logger.error(f"Redis get error: {e}")
-            return job_status_memory.get(job_id)
-    else:
-        return job_status_memory.get(job_id)
+    """Get job status from in-memory storage."""
+    return job_status_memory.get(job_id)
 
 def set_job_status(job_id: str, status_data: Dict):
-    """Set job status in Redis or memory"""
-    if redis_client:
-        try:
-            redis_client.setex(f"job_status:{job_id}", 3600, json.dumps(status_data))  # 1 hour TTL
-        except Exception as e:
-            logger.error(f"Redis set error: {e}")
-            job_status_memory[job_id] = status_data
-    else:
-        job_status_memory[job_id] = status_data
+    """Set job status in in-memory storage."""
+    job_status_memory[job_id] = status_data
 
 def get_cache(cache_key: str) -> Optional[Dict]:
-    """Get cached result from Redis or memory"""
-    if redis_client:
-        try:
-            cached_data = redis_client.get(f"cache:{cache_key}")
-            return json.loads(cached_data) if cached_data else None
-        except Exception as e:
-            logger.error(f"Redis cache get error: {e}")
-            return cache_memory.get(cache_key)
-    else:
-        return cache_memory.get(cache_key)
+    """Get cached result from in-memory storage."""
+    return cache_memory.get(cache_key)
 
-def set_cache(cache_key: str, data: Dict, ttl: int = 7200):  # 2 hours TTL
-    """Set cached result in Redis or memory"""
-    if redis_client:
-        try:
-            redis_client.setex(f"cache:{cache_key}", ttl, json.dumps(data))
-        except Exception as e:
-            logger.error(f"Redis cache set error: {e}")
-            cache_memory[cache_key] = data
-    else:
-        cache_memory[cache_key] = data
+def set_cache(cache_key: str, data: Dict, ttl: int = 7200):  # TTL is noted but not enforced
+    """Set cached result in in-memory storage."""
+    cache_memory[cache_key] = data
 
 def create_samples_file(patient_ids: List[str], job_id: str) -> str:
     """Create a temporary samples file for the pipeline"""
@@ -366,11 +321,10 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    redis_status = "connected" if redis_client else "disconnected"
+    """Health check endpoint, updated to remove Redis status."""
     return {
         "status": "healthy", 
         "timestamp": datetime.now().isoformat(),
-        "redis": redis_status
     }
 
 @app.post("/process")
@@ -510,12 +464,6 @@ async def delete_job(job_id: str):
         raise HTTPException(status_code=404, detail="Job not found")
     
     # Delete from Redis or memory
-    if redis_client:
-        try:
-            redis_client.delete(f"job_status:{job_id}")
-        except Exception as e:
-            logger.error(f"Redis delete error: {e}")
-    
     if job_id in job_status_memory:
         del job_status_memory[job_id]
     
@@ -523,44 +471,19 @@ async def delete_job(job_id: str):
 
 @app.get("/cache/clear")
 async def clear_cache():
-    """Clear all cached results"""
-    cleared_count = 0
-    
-    if redis_client:
-        try:
-            # Get all cache keys
-            cache_keys = redis_client.keys("cache:*")
-            if cache_keys:
-                cleared_count = redis_client.delete(*cache_keys)
-        except Exception as e:
-            logger.error(f"Redis cache clear error: {e}")
-    
-    # Clear memory cache
+    """Clear all cached results from the in-memory cache."""
+    cleared_count = len(cache_memory)
     cache_memory.clear()
-    
-    return {"message": f"Cache cleared", "items_cleared": cleared_count}
+    return {"message": "In-memory cache cleared", "items_cleared": cleared_count}
 
 @app.get("/cache/stats")
 async def cache_stats():
-    """Get cache statistics"""
-    stats = {"memory_cache_size": len(cache_memory)}
-    
-    if redis_client:
-        try:
-            cache_keys = redis_client.keys("cache:*")
-            job_keys = redis_client.keys("job_status:*")
-            stats.update({
-                "redis_cache_size": len(cache_keys),
-                "redis_job_status_size": len(job_keys),
-                "redis_connected": True
-            })
-        except Exception as e:
-            stats["redis_connected"] = False
-            stats["redis_error"] = str(e)
-    else:
-        stats["redis_connected"] = False
-    
-    return stats
+    """Get in-memory cache statistics."""
+    return {
+        "caching_backend": "in_memory",
+        "memory_cache_size": len(cache_memory),
+        "job_status_size": len(job_status_memory)
+    }
 
 if __name__ == "__main__":
     import uvicorn

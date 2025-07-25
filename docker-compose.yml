@@ -13,32 +13,9 @@ services:
       # Mount the api_outputs directory to persist results on the host machine
       - ./api_outputs:/app/api_outputs
     environment:
-
-      
+      # Pass credentials from a local .env file into the container
       - USER_EMAIL=${USER_EMAIL}
       - USER_PASSWORD=${USER_PASSWORD}
       - ECRF_EMAIL=${ECRF_EMAIL}
       - ECRF_PASSWORD=${ECRF_PASSWORD}
-      
-      # Environment variables for connecting to the Redis service
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - REDIS_DB=0
-    depends_on:
-      - redis
-    restart: unless-stopped
-
-  # The Redis cache service
-  redis:
-    image: "redis:alpine"
-    container_name: oncotwin_redis
-    ports:
-      # Expose Redis on the host for debugging, but the API will use the internal network
-      - "6379:6379"
-    volumes:
-      # Persist Redis data across container restarts
-      - redis_data:/data
-    restart: unless-stopped
-
-volumes:
-  redis_data: 
+    restart: unless-stopped 

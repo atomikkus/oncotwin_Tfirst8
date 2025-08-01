@@ -7,11 +7,6 @@ import json
 import tempfile
 import shutil
 
-"""
-Orchestrator script to run the full onco-twin pipeline with Parquet files.
-This version is designed for portability and Dockerization by using a managed
-temporary directory for all intermediate files.
-"""
 
 def get_file_hash(filepath):
     """Calculate MD5 hash of a file"""
@@ -113,7 +108,7 @@ def main():
 
         # Step 1: Genomic data retrieval
         if not skip_genomic:
-            cmd = [sys.executable, 'workbench_retrieval.py', '--samples', args.samples, '--output_dir', work_dir]
+            cmd = [sys.executable, 'src/workbench_retrieval.py', '--samples', args.samples, '--output_dir', work_dir]
             if not run_command(cmd, "Genomic data retrieval"):
                 print("Pipeline failed at genomic data retrieval.")
                 sys.exit(1)
@@ -124,7 +119,7 @@ def main():
         # Step 2: Clinical data extraction
         if not skip_clinical:
             # Note: ecrf_extract_pq.py now reads from and writes to the working directory
-            cmd = [sys.executable, 'ecrf_extract_pq.py', '--input_dir', work_dir, '--output_dir', work_dir]
+            cmd = [sys.executable, 'src/ecrf_extract_pq.py', '--input_dir', work_dir, '--output_dir', work_dir]
             if not run_command(cmd, "Clinical data extraction"):
                 print("Pipeline failed at clinical data extraction.")
                 sys.exit(1)
@@ -134,7 +129,7 @@ def main():
         # Step 3: Matching algorithm
         if not args.skip_matching:
             # The matching script reads all inputs from work_dir and writes final output to final_output_dir
-            cmd = [sys.executable, 'twin_algo_pq.py', '--input_dir', work_dir, '--output_dir', final_output_dir]
+            cmd = [sys.executable, 'src/twin_algo_pq.py', '--input_dir', work_dir, '--output_dir', final_output_dir]
             if args.single:
                 cmd.extend(['--single', args.single])
             if args.json_output:

@@ -8,7 +8,6 @@ import json
 import asyncio
 import uuid
 import hashlib
-# Remove redis import
 from datetime import datetime
 import tempfile
 import logging
@@ -150,7 +149,7 @@ async def run_single_pipeline_task(job_id: str, request: SingleRequest, refresh:
         samples_file = create_samples_file(request.patient_ids, f"{job_id}_{doctor_id}")
         
         cmd = [
-            sys.executable, "run_pipeline_pq.py",
+            sys.executable, "src/run_pipeline_pq.py",
             "--samples", samples_file,
             "--output_dir", sub_task_dir,
             "--doctor_id", str(doctor_id),
@@ -160,6 +159,7 @@ async def run_single_pipeline_task(job_id: str, request: SingleRequest, refresh:
             cmd.append("--refresh")
 
         # Use asyncio.create_subprocess_exec for non-blocking execution
+        # Run from root directory so all paths work correctly
         process = await asyncio.create_subprocess_exec(
             *cmd,
             stdout=asyncio.subprocess.PIPE,

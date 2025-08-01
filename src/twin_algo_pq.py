@@ -190,9 +190,9 @@ def main():
     # --- Load Configuration Files ---
     script_dir = os.path.dirname(os.path.realpath(__file__)) # Get directory of the script
     
-    # Determine paths for config files, using arguments if provided, otherwise default to script's directory
-    subsets_path = args.subsets if args.subsets else os.path.join(script_dir, 'column_subsets.json')
-    weights_path = args.weights if args.weights else os.path.join(script_dir, 'weights.json')
+    # Determine paths for config files, using arguments if provided, otherwise default to config directory
+    subsets_path = args.subsets if args.subsets else os.path.join(os.path.dirname(os.path.dirname(script_dir)), 'config', 'column_subsets.json')
+    weights_path = args.weights if args.weights else os.path.join(os.path.dirname(os.path.dirname(script_dir)), 'config', 'weights.json')
     
     try:
         with open(subsets_path, 'r') as f:

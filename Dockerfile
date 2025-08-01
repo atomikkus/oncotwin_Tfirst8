@@ -14,14 +14,13 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-COPY otwin8_api.py .
-COPY run_pipeline_pq.py .
-COPY workbench_retrieval.py .
-COPY gene_pathways_kegg.json .
-COPY ecrf_extract_pq.py .
-COPY twin_algo_pq.py .
-COPY weights.json .
-COPY column_subsets.json .
+# Copy source code
+COPY src/ ./src/
+
+# Copy configuration files
+COPY config/ ./config/
+
+# Copy environment file
 COPY .env .
 
 
@@ -29,4 +28,4 @@ COPY .env .
 EXPOSE 8001
 
 # --- Command ---
-CMD ["uvicorn", "otwin8_api:app", "--host", "0.0.0.0", "--port", "8001"] 
+CMD ["uvicorn", "src.otwin8_api:app", "--host", "0.0.0.0", "--port", "8001"] 

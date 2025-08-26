@@ -191,22 +191,23 @@ def main():
     script_dir = os.path.dirname(os.path.realpath(__file__)) # Get directory of the script
     
     # Determine paths for config files, using arguments if provided, otherwise default to config directory
-    subsets_path = args.subsets if args.subsets else os.path.join(os.path.dirname(os.path.dirname(script_dir)), 'config', 'column_subsets.json')
-    weights_path = args.weights if args.weights else os.path.join(os.path.dirname(os.path.dirname(script_dir)), 'config', 'weights.json')
+    subsets_path = args.subsets if args.subsets else os.path.join(os.path.dirname(script_dir), 'config', 'column_subsets.json')
+    weights_path = args.weights if args.weights else os.path.join(os.path.dirname(script_dir), 'config', 'weights.json')
+
     
     try:
         with open(subsets_path, 'r') as f:
             subsets = json.load(f)
-            snv_subset = subsets.get('snv_subset', ['patientID', 'geneName', 'variantPDot', 'Impact'])
-            cnv_subset = subsets.get('cnv_subset', ['patientID', 'geneName'])
-            fusion_subset = subsets.get('fusion_subset', ['patientID', 'gene5', 'gene3'])
-            clinical_subset = subsets.get('clinical_subset', ['patientID', 'cancerSiteIdcCode', 'cancerSite', 'gender', 'morphologyIdcCode', 'age'])
+            snv_subset = subsets['snv_subset']
+            cnv_subset = subsets['cnv_subset']
+            fusion_subset = subsets['fusion_subset']
+            clinical_subset = subsets['clinical_subset']
     except FileNotFoundError:
         print(f"Warning: Subsets file not found at '{subsets_path}'. Using default column subsets.")
         snv_subset = ['patientID', 'geneName', 'variantPDot', 'Impact']
         cnv_subset = ['patientID', 'geneName']
         fusion_subset = ['patientID', 'gene5', 'gene3']
-        clinical_subset = ['patientID', 'cancerSiteIdcCode', 'cancerSite', 'gender', 'morphologyIdcCode', 'age']
+        clinical_subset = ['patientID', 'cancerSite', 'gender', 'age']
 
     default_weights = { "clinical_cancerSite": 0.1, "snv_variantPDot": 2, "snv_Impact": 3, "cnv_geneName": 7.6, "fusion_gene3": 9.25, "snv_geneMarker": 0.0, "snv_geneName": 4, "fusion_gene5": 9.25, "clinical_gender": 0.2, "clinical_morphologyIdcCode": 0.1, "clinical_age": 0.2 }
     try:
@@ -319,6 +320,8 @@ def main():
     profiles = {patient_id: json.load(open(os.path.join(profiles_path, patient_id))) for patient_id in patient_ids}
     matches = calculate_similarity(profiles, top_n=20, weights=weights_2)
     match_df = matches_to_dataframe(matches, profiles)
+
+    print(match_df.columns)
     # List of columns to check
     columns_to_check = [
         "Query_snv_geneName", 

@@ -1,5 +1,6 @@
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Depends, Security
 from fastapi.responses import JSONResponse, FileResponse
+from fastapi.security import APIKeyHeader
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 import subprocess
@@ -15,6 +16,7 @@ import sys
 import pandas as pd
 from dotenv import load_dotenv
 import shutil
+import secrets
 
 load_dotenv(override=True)
 
@@ -26,6 +28,33 @@ app = FastAPI(title="OncoTwin Simplified API", version="1.0.0")
 
 job_status_memory = {}
 cache_memory = {}
+
+# --- Authentication Configuration ---
+API_KEY_HEADER = APIKeyHeader(name="X-API-Key", auto_error=False)
+
+# Generate API key from credentials or use environment variable
+# Default key is generated from username:password hash
+DEFAULT_USERNAME = "satya@4basacare.com"
+DEFAULT_PASSWORD = "ocWin@43321!"
+DEFAULT_API_KEY = hashlib.sha256(f"{DEFAULT_USERNAME}:{DEFAULT_PASSWORD}".encode()).hexdigest()
+
+# Get API key from environment variable or use default
+API_KEY = os.getenv("API_KEY", DEFAULT_API_KEY)
+
+def verify_api_key(api_key: str = Security(API_KEY_HEADER)):
+    """Verify API key from header"""
+    if not api_key:
+        raise HTTPException(
+            status_code=401,
+            detail="API key is missing. Please provide X-API-Key header.",
+        )
+    
+    if not secrets.compare_digest(api_key, API_KEY):
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid API key",
+        )
+    return api_key
 
 # --- Pydantic Models ---
 
@@ -312,7 +341,7 @@ async def run_batch_pipeline_async(job_id: str, request: BatchPipelineRequest):
 # --- API Endpoints ---
 
 @app.get("/")
-async def root():
+async def root(api_key: str = Depends(verify_api_key)):
     return {
         "message": "OncoTwin Simplified API", 
         "version": "1.0.0",
@@ -330,7 +359,8 @@ async def health_check():
 @app.post("/process")
 async def process_patients_batch(
     request: BatchPipelineRequest,
-    background_tasks: BackgroundTasks
+    background_tasks: BackgroundTasks,
+    api_key: str = Depends(verify_api_key)
 ):
     """Processes multiple sample lists from multiple doctors in a single job."""
     
@@ -359,7 +389,7 @@ async def process_patients_batch(
 
 
 @app.get("/status/{job_id}", response_model=JobStatusResponse)
-async def get_job_status_endpoint(job_id: str):
+async def get_job_status_endpoint(job_id: str, api_key: str = Depends(verify_api_key)):
     """Get the simplified status of a batch job."""
     job_data = get_job_status(job_id)
     if not job_data:
@@ -369,7 +399,7 @@ async def get_job_status_endpoint(job_id: str):
     return JobStatusResponse(**job_data)
 
 @app.get("/job/{job_id}/details")
-async def get_job_details_debug(job_id: str):
+async def get_job_details_debug(job_id: str, api_key: str = Depends(verify_api_key)):
     """
     (DEBUGGING) Returns the full internal state of a job, including detailed
     error messages for each failed sub-task.
@@ -380,7 +410,7 @@ async def get_job_details_debug(job_id: str):
     return job_data
 
 @app.get("/download/{job_id}/{format}")
-async def download_results(job_id: str, format: str):
+async def download_results(job_id: str, format: str, api_key: str = Depends(verify_api_key)):
     """Download results in specified format (json or excel)"""
     job_data = get_job_status(job_id)
     if not job_data:
@@ -403,7 +433,7 @@ async def download_results(job_id: str, format: str):
     return FileResponse(file_path, filename=filename)
 
 @app.get("/results/{job_id}")
-async def get_results_json(job_id: str):
+async def get_results_json(job_id: str, api_key: str = Depends(verify_api_key)):
     """Get results in JSON format directly. The doctor_id is now part of the source file."""
     job_data = get_job_status(job_id)
     if not job_data:
@@ -457,7 +487,7 @@ async def get_results_json(job_id: str):
         raise HTTPException(status_code=500, detail=f"Error reading results: {str(e)}")
 
 @app.delete("/job/{job_id}")
-async def delete_job(job_id: str):
+async def delete_job(job_id: str, api_key: str = Depends(verify_api_key)):
     """Delete a job and its status"""
     job_data = get_job_status(job_id)
     if not job_data:
@@ -470,14 +500,14 @@ async def delete_job(job_id: str):
     return {"message": f"Job {job_id} deleted successfully"}
 
 @app.get("/cache/clear")
-async def clear_cache():
+async def clear_cache(api_key: str = Depends(verify_api_key)):
     """Clear all cached results from the in-memory cache."""
     cleared_count = len(cache_memory)
     cache_memory.clear()
     return {"message": "In-memory cache cleared", "items_cleared": cleared_count}
 
 @app.get("/cache/stats")
-async def cache_stats():
+async def cache_stats(api_key: str = Depends(verify_api_key)):
     """Get in-memory cache statistics."""
     return {
         "caching_backend": "in_memory",
@@ -487,4 +517,4 @@ async def cache_stats():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8001) 
+    uvicorn.run(app, host="0.0.0.0", port=8002) 

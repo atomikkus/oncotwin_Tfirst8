@@ -25,7 +25,7 @@ COPY .env .
 
 
 # Expose the port the API runs on
-EXPOSE 8001
+EXPOSE 8002
 
 # --- Command ---
-CMD ["uvicorn", "src.otwin8_api:app", "--host", "0.0.0.0", "--port", "8001"] 
+CMD ["uvicorn", "src.otwin8_api:app", "--host", "0.0.0.0", "--port", "8002"] 

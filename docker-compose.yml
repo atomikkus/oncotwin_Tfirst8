@@ -8,7 +8,7 @@ services:
       dockerfile: Dockerfile
     container_name: oncotwin_api
     ports:
-      - "8001:8001"
+      - "8002:8002"
     volumes:
       # Mount the api_outputs directory to persist results on the host machine
       - ./api_outputs:/app/api_outputs

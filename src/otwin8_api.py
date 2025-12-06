@@ -32,14 +32,13 @@ cache_memory = {}
 # --- Authentication Configuration ---
 API_KEY_HEADER = APIKeyHeader(name="X-API-Key", auto_error=False)
 
-# Generate API key from credentials or use environment variable
-# Default key is generated from username:password hash
-DEFAULT_USERNAME = "satya@4basacare.com"
-DEFAULT_PASSWORD = "ocWin@43321!"
-DEFAULT_API_KEY = hashlib.sha256(f"{DEFAULT_USERNAME}:{DEFAULT_PASSWORD}".encode()).hexdigest()
-
-# Get API key from environment variable or use default
-API_KEY = os.getenv("API_KEY", DEFAULT_API_KEY)
+# Get API key from environment variable (required)
+API_KEY = os.getenv("API_KEY")
+if not API_KEY:
+    raise ValueError(
+        "API_KEY environment variable is required. "
+        "Please set it in your .env file or environment variables."
+    )
 
 def verify_api_key(api_key: str = Security(API_KEY_HEADER)):
     """Verify API key from header"""
@@ -91,7 +90,9 @@ class InternalJobStatus(BaseModel):
 
 def get_cache_key(request: SingleRequest) -> str:
     """Generate a cache key based on request parameters"""
-    content = f"{request.doctor_id}_{sorted(request.patient_ids)}"
+    # Sort patient IDs and join them with underscores for consistent cache keys
+    sorted_patient_ids = "_".join(sorted(request.patient_ids))
+    content = f"{request.doctor_id}_{sorted_patient_ids}"
     return hashlib.md5(content.encode()).hexdigest()
 
 def get_job_status(job_id: str) -> Optional[Dict]:
@@ -315,8 +316,26 @@ async def run_batch_pipeline_async(job_id: str, request: BatchPipelineRequest):
     final_output_dir = os.path.join(os.getcwd(), "api_outputs", job_id, "final")
     os.makedirs(final_output_dir, exist_ok=True)
     
-    final_json = merge_json_results(successful_tasks, final_output_dir, job_id)
-    final_excel = merge_excel_results(successful_tasks, final_output_dir, job_id)
+    # Merge results with exception handling to prevent jobs from getting stuck
+    try:
+        final_json = merge_json_results(successful_tasks, final_output_dir, job_id)
+    except Exception as e:
+        logger.error(f"Error merging JSON results for job {job_id}: {e}")
+        final_json = None
+        job_data["errors"].append({
+            "doctor_id": None,
+            "error": f"Failed to merge JSON results: {str(e)}"
+        })
+    
+    try:
+        final_excel = merge_excel_results(successful_tasks, final_output_dir, job_id)
+    except Exception as e:
+        logger.error(f"Error merging Excel results for job {job_id}: {e}")
+        final_excel = None
+        job_data["errors"].append({
+            "doctor_id": None,
+            "error": f"Failed to merge Excel results: {str(e)}"
+        })
     
     if final_json and final_excel:
         job_data["status"] = "completed"
@@ -324,7 +343,14 @@ async def run_batch_pipeline_async(job_id: str, request: BatchPipelineRequest):
         job_data["output_files"] = {"json": final_json, "excel": final_excel}
     else:
         job_data["status"] = "failed"
-        job_data["message"] = "Batch processing failed to generate any combined results."
+        error_summary = []
+        if not final_json:
+            error_summary.append("JSON merge failed")
+        if not final_excel:
+            error_summary.append("Excel merge failed")
+        if not successful_tasks:
+            error_summary.append("No successful tasks")
+        job_data["message"] = f"Batch processing failed: {', '.join(error_summary)}."
 
     job_data["completed_at"] = datetime.now().isoformat()
     set_job_status(job_id, job_data)

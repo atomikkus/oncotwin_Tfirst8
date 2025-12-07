@@ -20,10 +20,6 @@ COPY src/ ./src/
 # Copy configuration files
 COPY config/ ./config/
 
-# Copy environment file
-COPY .env .
-
-
 # Expose the port the API runs on
 EXPOSE 8002
 

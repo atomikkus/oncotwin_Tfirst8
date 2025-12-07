@@ -218,15 +218,58 @@ def main():
         weights_2 = default_weights
 
     # --- Load Data Files ---
+    # Check which genomic files exist
+    snv_file = os.path.join(args.input_dir, 'snv_cdss_input.parquet')
+    cnv_file = os.path.join(args.input_dir, 'cnv_cdss_input.parquet')
+    fusion_file = os.path.join(args.input_dir, 'fusion_cdss_input.parquet')
+    clinical_file = os.path.join(args.input_dir, "clinical_Details.parquet")
+    
+    genomic_files = {
+        'snv': snv_file,
+        'cnv': cnv_file,
+        'fusion': fusion_file
+    }
+    
+    # Check if at least one genomic file exists
+    existing_genomic_files = [name for name, path in genomic_files.items() if os.path.exists(path)]
+    
+    if not existing_genomic_files:
+        print(f"Error: No genomic data files found. Please ensure at least one of the following files exists:")
+        for name, path in genomic_files.items():
+            print(f"  - {name}: {path}")
+        sys.exit(1)
+    
+    # Load existing genomic files, create empty dataframes for missing ones
     try:
-        snv_df = preprocess_dataframe(pd.read_parquet(os.path.join(args.input_dir, 'snv_cdss_input.parquet')))
-        cnv_df = preprocess_dataframe(pd.read_parquet(os.path.join(args.input_dir, 'cnv_cdss_input.parquet')))
-        cnv_df['functionCnv'] = cnv_df['functionCnv'].apply(lambda x : x.lower())
-        fusion_df = preprocess_dataframe(pd.read_parquet(os.path.join(args.input_dir, 'fusion_cdss_input.parquet')))
-        clinical_df = pd.read_parquet(os.path.join(args.input_dir, "clinical_Details.parquet"))
-        clinical_df.drop_duplicates(subset="patientID", inplace=True)
-    except FileNotFoundError as e:
-        print(f"Error: Input data file not found - {e}. Please ensure all required parquet files are in the input directory.")
+        if os.path.exists(snv_file):
+            snv_df = preprocess_dataframe(pd.read_parquet(snv_file))
+        else:
+            print(f"Warning: SNV file not found at {snv_file}. Using empty dataframe.")
+            snv_df = pd.DataFrame(columns=snv_subset)
+        
+        if os.path.exists(cnv_file):
+            cnv_df = preprocess_dataframe(pd.read_parquet(cnv_file))
+            if 'functionCnv' in cnv_df.columns:
+                cnv_df['functionCnv'] = cnv_df['functionCnv'].apply(lambda x : x.lower())
+        else:
+            print(f"Warning: CNV file not found at {cnv_file}. Using empty dataframe.")
+            cnv_df = pd.DataFrame(columns=cnv_subset)
+        
+        if os.path.exists(fusion_file):
+            fusion_df = preprocess_dataframe(pd.read_parquet(fusion_file))
+        else:
+            print(f"Warning: Fusion file not found at {fusion_file}. Using empty dataframe.")
+            fusion_df = pd.DataFrame(columns=fusion_subset)
+        
+        if os.path.exists(clinical_file):
+            clinical_df = pd.read_parquet(clinical_file)
+            clinical_df.drop_duplicates(subset="patientID", inplace=True)
+        else:
+            print(f"Warning: Clinical file not found at {clinical_file}. Using empty dataframe.")
+            clinical_df = pd.DataFrame(columns=clinical_subset)
+            
+    except Exception as e:
+        print(f"Error: Failed to load data files - {e}")
         sys.exit(1)
 
     # --- Main Logic ---

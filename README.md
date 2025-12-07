@@ -46,15 +46,18 @@ A FastAPI-based REST API for processing patient data and generating twin matchin
    pip install -r requirements.txt
    ```
 
-5. **Set up environment variables** (optional)
-   Create a `.env` file in the root directory:
-   ```env
-   API_KEY=your_custom_api_key_here
-   USER_EMAIL=your_email@example.com
-   USER_PASSWORD=your_password
-   ECRF_EMAIL=ecrf_email@example.com
-   ECRF_PASSWORD=ecrf_password
+5. **Set up environment variables** (required)
+   Copy `.env.example` to `.env` and fill in your credentials:
+   ```bash
+   cp .env.example .env
    ```
+   
+   Then edit `.env` and set your API key:
+   ```env
+   API_KEY=your_secure_api_key_here
+   ```
+   
+   **Security Note**: The `.env` file is already in `.gitignore` and will not be committed. Never commit actual credentials to version control.
 
 ## Running the API
 
@@ -88,18 +91,19 @@ The API will be available at `http://localhost:8002`
 
 The API uses API key authentication via the `X-API-Key` header.
 
-### Default API Key
+### Setting Up API Key
 
-The default API key is generated from the credentials:
-- **Username**: `satya@4basacare.com`
-- **Password**: `ocWin@43321!`
-- **API Key**: `aa6be4b57c3032de16daef63e1229230020e2d3e6bf4bb585d3f356f6531d882`
+**IMPORTANT**: The API key must be set via environment variable. Never commit credentials to version control.
 
-### Custom API Key
+1. Create a `.env` file in the root directory (see `.env.example` for reference)
+2. Set your API key:
+   ```bash
+   API_KEY=your_secure_api_key_here
+   ```
 
-Set a custom API key using the `API_KEY` environment variable:
+Or set it as an environment variable:
 ```bash
-export API_KEY=your_custom_key_here
+export API_KEY=your_secure_api_key_here
 ```
 
 ### Using Authentication
@@ -107,9 +111,11 @@ export API_KEY=your_custom_key_here
 Include the API key in all requests (except `/health`):
 
 ```bash
-curl -H "X-API-Key: aa6be4b57c3032de16daef63e1229230020e2d3e6bf4bb585d3f356f6531d882" \
+curl -H "X-API-Key: ${API_KEY}" \
      http://localhost:8002/
 ```
+
+**Note**: Replace `${API_KEY}` with your actual API key from environment variables.
 
 ## API Endpoints
 
@@ -259,8 +265,13 @@ Get cache statistics.
 
 ```python
 import requests
+import os
 
-API_KEY = "aa6be4b57c3032de16daef63e1229230020e2d3e6bf4bb585d3f356f6531d882"
+# Get API key from environment variable
+API_KEY = os.getenv("API_KEY")
+if not API_KEY:
+    raise ValueError("API_KEY environment variable is required")
+
 BASE_URL = "http://localhost:8002"
 headers = {"X-API-Key": API_KEY}
 
@@ -293,9 +304,12 @@ print(results)
 ### cURL
 
 ```bash
+# Set your API key (replace with your actual key)
+export API_KEY=your_api_key_here
+
 # Submit a job
 curl -X POST http://localhost:8002/process \
-  -H "X-API-Key: aa6be4b57c3032de16daef63e1229230020e2d3e6bf4bb585d3f356f6531d882" \
+  -H "X-API-Key: ${API_KEY}" \
   -H "Content-Type: application/json" \
   -d '{
     "requests": [
@@ -308,11 +322,11 @@ curl -X POST http://localhost:8002/process \
   }'
 
 # Check status
-curl -H "X-API-Key: aa6be4b57c3032de16daef63e1229230020e2d3e6bf4bb585d3f356f6531d882" \
+curl -H "X-API-Key: ${API_KEY}" \
      http://localhost:8002/status/{job_id}
 
 # Download results
-curl -H "X-API-Key: aa6be4b57c3032de16daef63e1229230020e2d3e6bf4bb585d3f356f6531d882" \
+curl -H "X-API-Key: ${API_KEY}" \
      http://localhost:8002/download/{job_id}/excel \
      --output results.xlsx
 ```
@@ -320,7 +334,9 @@ curl -H "X-API-Key: aa6be4b57c3032de16daef63e1229230020e2d3e6bf4bb585d3f356f6531
 ### JavaScript/Fetch
 
 ```javascript
-const API_KEY = "aa6be4b57c3032de16daef63e1229230020e2d3e6bf4bb585d3f356f6531d882";
+// Get API key from environment variable (set via .env or environment)
+// Note: In browser environments, use a secure method to inject the API key
+const API_KEY = process.env.API_KEY || "your_api_key_here";
 const BASE_URL = "http://localhost:8002";
 
 // Submit a job
@@ -358,11 +374,16 @@ fetch(`${BASE_URL}/process`, {
 
 ### Environment Variables
 
-- `API_KEY`: Custom API key (defaults to generated key from credentials)
+**Required:**
+- `API_KEY`: API key for authentication (required, no default)
+
+**Optional (for data access):**
 - `USER_EMAIL`: User email for data access
 - `USER_PASSWORD`: User password for data access
 - `ECRF_EMAIL`: ECRF email for data access
 - `ECRF_PASSWORD`: ECRF password for data access
+
+**Security Note**: Never commit `.env` files or hardcode credentials in source code. Always use environment variables for sensitive information.
 
 ### Configuration Files
 
